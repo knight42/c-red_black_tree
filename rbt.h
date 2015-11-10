@@ -16,8 +16,11 @@ struct rbt_tree {
 //My Own Functions
 extern struct rbt_node *rbt_new_node(rbt_key key);
 extern struct rbt_tree *rbt_new_tree(void);
+extern struct rbt_node *rbt_locate(struct rbt_tree *T, rbt_key key);
+extern int rbt_insert_one_key(struct rbt_tree *T, rbt_key key);
 extern int rbt_insert_keys(struct rbt_tree *T, rbt_key *keys, int size);
-extern void rbt_print_tree(struct rbt_tree *T);
+extern void rbt_print_tree(struct rbt_tree *T, const char *filename);
+extern int rbt_del_one_key(struct rbt_tree *T, rbt_key key);
 
 
 //Functions in the book

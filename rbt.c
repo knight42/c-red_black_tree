@@ -4,7 +4,7 @@
 //#include <ctype.h>
 //#include <string.h>
 //#include <math.h>
-//#include <time.h>
+#include <time.h>
 //#include <unistd.h>
 //#include <mpi.h>
 //#include <omp.h>
@@ -19,25 +19,44 @@ static char __errcode;
 
 /*The implementation of my own functions*/
 /*============== BEGIN ==================*/
-void rbt_print_tree_travese(struct rbt_node *node, unsigned depth, struct rbt_node *nil)
+void rbt_print_tree_travese(struct rbt_node *node, FILE *output)
 {
-    unsigned i = depth;
-    const char *style = (node->color == RED) ? "\033[1;31;47m" : "\033[5;30;47m";
-    if(node != nil) {
-        while(i--) putchar('\t');
-        printf("%s%d\033[0m\n", style, node->key);
-        rbt_print_tree_travese(node->right, depth + 1, nil);
-        rbt_print_tree_travese(node->left, depth + 1, nil);
-    }
-    else {
-        while(i--) putchar('\t');
-        printf("%s%s\033[0m\n", style, "NIL");
+    clock_t t;
+    static char tmp[100];
+    // node != T->nil
+    if(node->p != NULL) {
+        rbt_print_tree_travese(node->left, output);
+
+        if(node->color == RED) {
+            fprintf(output, "%d [color=\"red\"];\n", node->key);
+        }
+
+        if(node->left->p != NULL)
+            fprintf(output, "%d -> %d;\n", node->key, node->left->key);
+        else {
+            t = clock();
+            sprintf(tmp, "nil%ld [shape=point];\n%%d -> nil%ld;\n", t, t);
+            fprintf(output, tmp, node->key);
+        }
+
+        if(node->right->p != NULL)
+            fprintf(output, "%d -> %d;\n", node->key, node->right->key);
+        else {
+            t = clock();
+            sprintf(tmp, "nil%ld [shape=point];\n%%d -> nil%ld;\n", t, t);
+            fprintf(output, tmp, node->key);
+        }
+
+        rbt_print_tree_travese(node->right, output);
     }
 }
-void rbt_print_tree(struct rbt_tree *T)
+void rbt_print_tree(struct rbt_tree *T, const char *filename)
 {
-    puts("------------- 8< ---------------");
-    rbt_print_tree_travese(T->root, 0, T->nil);
+    FILE *result = fopen(filename, "w");
+    fputs("digraph BST {\nnode [shape=circle];\n", result);
+    fputs("node[fontsize = \"10\"];", result);
+    rbt_print_tree_travese(T->root, result);
+    fputs("}\n", result);
 }
 
 struct rbt_node *rbt_new_node(rbt_key key)
@@ -56,18 +75,51 @@ struct rbt_tree *rbt_new_tree(void)
     return t;
 }
 
+int rbt_insert_one_key(struct rbt_tree *T, rbt_key key)
+{
+    struct rbt_node *node;
+    node = rbt_new_node(key);
+    RB_INSERT(T, node);
+    return 0;
+}
+
 int rbt_insert_keys(struct rbt_tree *T, rbt_key *keys, int size)
 {
-    RESET_ERR();
     if(size < 0) return -1;
 
     int i;
-    struct rbt_node *node;
     for (i = 0; i < size; ++i)
     {
-        node = rbt_new_node(keys[i]);
-        RB_INSERT(T, node);
-        if(! SUCCESS()) return -2;
+        rbt_insert_one_key(T, keys[i]);
+    }
+    return 0;
+}
+
+struct rbt_node *rbt_locate(struct rbt_tree *T, rbt_key key)
+{
+    struct rbt_node *root = T->root;
+    // root != T->nil
+    while(root->p != NULL) {
+        if(root->key == key) return root;
+        root = (root->key > key) ? root->left : root->right;
+    }
+    return NULL;
+}
+
+int rbt_del_one_key(struct rbt_tree *T, rbt_key key)
+{
+    struct rbt_node *position = rbt_locate(T, key);
+    if(! position) return -1;
+    RB_DELETE(T, position);
+    return 0;
+}
+
+int rbt_del_keys(struct rbt_tree *T, rbt_key *keys, int nmem)
+{
+    int i;
+    for (i = 0; i < nmem; ++i)
+    {
+        rbt_del_one_key(T, keys[i]);
     }
     return 0;
 }
@@ -81,6 +133,9 @@ int LEFT_ROTATE(struct rbt_tree *T, struct rbt_node *z)
 
     struct rbt_node *rchild = z->right, **tmp;
     z->right = rchild->left;
+    if(rchild->left != T->nil) {
+        rchild->left->p = z;
+    }
     rchild->left = z;
     rchild->p = z->p;
     if(z->p == T->nil) {
@@ -102,6 +157,9 @@ int RIGHT_ROTATE(struct rbt_tree *T, struct rbt_node *z)
 
     struct rbt_node *lchild = z->left, **tmp;
     z->left = lchild->right;
+    if(lchild->right != T->nil) {
+        lchild->right->p = z;
+    }
     lchild->right = z;
     lchild->p = z->p;
     if(z->p == T->nil) {
@@ -277,6 +335,7 @@ int RB_INSERT_FIXUP(struct rbt_tree *T, struct rbt_node *z)
 {
     struct rbt_node *y;
     while(z->p->color == RED) {
+        // left
         if(z->p == z->p->p->left) {
             y = z->p->p->right;
             /*Case 1*/
@@ -286,18 +345,20 @@ int RB_INSERT_FIXUP(struct rbt_tree *T, struct rbt_node *z)
                 z->p->p->color = RED;
                 z = z->p->p;
             }
-            /*Case 2*/
-            else if(z == z->p->right) {
-                z = z->p;
-                LEFT_ROTATE(T, z);
-            }
-            /*Case 3*/
             else {
+                /*Case 2*/
+                if(z == z->p->right) {
+                    z = z->p;
+                    LEFT_ROTATE(T, z);
+                }
+
+                /*Case 3*/
                 z->p->color = BLACK;
                 z->p->p->color = RED;
                 RIGHT_ROTATE(T, z->p->p);
             }
         }
+        // right
         else {
             y = z->p->p->left;
             /*Case 1*/
@@ -307,13 +368,14 @@ int RB_INSERT_FIXUP(struct rbt_tree *T, struct rbt_node *z)
                 z->p->p->color = RED;
                 z = z->p->p;
             }
-            /*Case 2*/
-            else if(z == z->p->left) {
-                z = z->p;
-                RIGHT_ROTATE(T, z);
-            }
-            /*Case 3*/
             else {
+            /*Case 2*/
+                if(z == z->p->left) {
+                    z = z->p;
+                    RIGHT_ROTATE(T, z);
+                }
+
+            /*Case 3*/
                 z->p->color = BLACK;
                 z->p->p->color = RED;
                 LEFT_ROTATE(T, z->p->p);
@@ -346,5 +408,6 @@ int RB_INSERT(struct rbt_tree *T, struct rbt_node *z)
     z->left = z->right = T->nil;
     z->color = RED;
 
-    return RB_INSERT_FIXUP(T, z);
+    RB_INSERT_FIXUP(T, z);
+    return 0;
 }
