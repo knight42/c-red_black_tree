@@ -38,21 +38,26 @@ void rbt_postord_tranverse(struct rbt_node *root, FILE *fout)
     }
 }
 
-void rbt_print_tree_travese(struct rbt_node *node, FILE *output)
+void rbt_print_tree_travese(struct rbt_tree *T, struct rbt_node *node, FILE *output)
 {
     clock_t t;
     static char tmp[100];
     // node != T->nil
     if(node->p != NULL) {
-        rbt_print_tree_travese(node->left, output);
+        rbt_print_tree_travese(T, node->left, output);
 
         if(node->color == RED) {
             fprintf(output, "%d [color=\"red\"];\n", node->key);
         }
 
+        #ifdef EXTENDED_RBT
+        fprintf(output, "%d [label=\"{<f0>%d | <f1>%d}\"];\n", node->key, node->key, OS_RANK(T, node));
+        #endif
+
         // node->left != T->nil
-        if(node->left->p != NULL)
+        if(node->left->p != NULL) {
             fprintf(output, "%d -> %d;\n", node->key, node->left->key);
+        }
         else {
             t = clock();
             // generate uniq node name
@@ -61,28 +66,31 @@ void rbt_print_tree_travese(struct rbt_node *node, FILE *output)
         }
 
         // node->right != T->nil
-        if(node->right->p != NULL)
+        if(node->right->p != NULL) {
             fprintf(output, "%d -> %d;\n", node->key, node->right->key);
+        }
         else {
             t = clock();
             sprintf(tmp, "nil%ld [shape=point];\n%%d -> nil%ld;\n", t, t);
             fprintf(output, tmp, node->key);
         }
 
-        rbt_print_tree_travese(node->right, output);
+        rbt_print_tree_travese(T, node->right, output);
     }
 }
 void rbt_print_tree(struct rbt_tree *T, const char *filename)
 {
     FILE *result = fopen(filename, "w");
-    fputs("digraph BST {\nnode [shape=circle];\n", result);
-    fputs("node[fontsize = \"10\"];", result);
-    rbt_print_tree_travese(T->root, result);
+    fputs("digraph BST {\nnode [shape=record];\n", result);
+    fputs("node[fontsize = \"10\"];\n", result);
+    rbt_print_tree_travese(T, T->root, result);
     fputs("}\n", result);
 }
 
 struct rbt_node *rbt_new_node(rbt_key key)
 {
+    // node->p = node->left = node->right = NULL
+    // node->size = node->key = 0
     struct rbt_node *node = (struct rbt_node *)calloc(1, sizeof(struct rbt_node));
     node->key = key;
     return node;
@@ -146,7 +154,52 @@ int rbt_del_keys(struct rbt_tree *T, rbt_key *keys, int nmem)
     }
     return 0;
 }
+
 /*============== END ==================*/
+
+#ifdef EXTENDED_RBT
+
+void ext_rbt_allrank(struct rbt_node *root)
+{
+    if(root->p != NULL) {
+        ext_rbt_allrank(root->left);
+        ext_rbt_allrank(root->right);
+        root->size = root->left->size + root->right->size + 1;
+    }
+}
+
+int OS_RANK(struct rbt_tree *T, struct rbt_node *node)
+{
+    int rank = node->left->size + 1;
+    while(node != T->root) {
+        if(node == node->p->right)
+            rank += node->p->left->size + 1;
+        node = node->p;
+    }
+    return rank;
+}
+
+rbt_key OS_SELECT(struct rbt_node *root, int i)
+{
+    if(i <= 0)
+        return (rbt_key)0;
+
+    // root != T->nil
+    while(root->size != 0) {
+        if(root->left->size == i - 1) {
+            return root->key;
+        }
+        else if(root->left->size > i - 1) {
+            root = root->left;
+        }
+        else {
+            root = root->right;
+            i -= root->left->size + 1;
+        }
+    }
+    return (rbt_key)0;
+}
+#endif
 
 
 int LEFT_ROTATE(struct rbt_tree *T, struct rbt_node *z)
@@ -195,28 +248,6 @@ int RIGHT_ROTATE(struct rbt_tree *T, struct rbt_node *z)
     z->p = lchild;
 
     return 0;
-}
-
-rbt_key OS_SELECT(struct rbt_node *_root_, int i)
-{
-    RESET_ERR();
-    struct rbt_node *root = _root_;
-/*
- *    while(root->size != 0) {
- *        if(root->left->size == i - 1) {
- *            return root->key;
- *        }
- *        else if(root->left->size > i - 1) {
- *            root = root->left;
- *        }
- *        else {
- *            root = root->right;
- *        }
- *    }
- *
- *    FAIL();
- */
-    return (rbt_key)0;
 }
 
 __attribute__((always_inline)) struct rbt_node* TREE_MINIMUM(struct rbt_node *node) 

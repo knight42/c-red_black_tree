@@ -17,7 +17,6 @@ extern void rbt_inord_tranverse(struct rbt_node *root, FILE *fout);
 extern void rbt_postord_tranverse(struct rbt_node *root, FILE *fout);
 
 
-
 extern int rbt_insert_one_key(struct rbt_tree *T, rbt_key key);
 extern int rbt_insert_keys(struct rbt_tree *T, rbt_key *keys, int size);
 extern int rbt_del_one_key(struct rbt_tree *T, rbt_key key);
@@ -25,4 +24,9 @@ extern int rbt_del_keys(struct rbt_tree *T, rbt_key *keys, int nmem);
 
 
 extern void rbt_print_tree(struct rbt_tree *T, const char *filename);
+
+#ifdef EXTENDED_RBT
+extern void ext_rbt_allrank(struct rbt_node *root);
+#endif
+
 #endif

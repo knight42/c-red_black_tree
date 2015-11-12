@@ -7,7 +7,9 @@ typedef enum { BLACK, RED } rbt_color;
 struct rbt_node {
     rbt_key key;
     rbt_color color;
-    //int size;
+    #ifdef EXTENDED_RBT
+    int size;
+    #endif
     struct rbt_node *left, *right, *p;
 };
 
@@ -30,5 +32,8 @@ extern struct rbt_node* TREE_MINIMUM(struct rbt_node *node) __attribute__((alway
 extern int RB_DELETE_FIXUP(struct rbt_tree *T, struct rbt_node *x);
 extern struct rbt_node *RB_DELETE(struct rbt_tree *T, struct rbt_node *node);
 
+#ifdef EXTENDED_RBT
 extern rbt_key OS_SELECT(struct rbt_node *root, int i);
+extern int OS_RANK(struct rbt_tree *T, struct rbt_node *node);
+#endif
 #endif
