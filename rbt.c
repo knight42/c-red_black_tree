@@ -1,15 +1,7 @@
 #include <stdio.h>
 #include "rbt.h"
 #include <stdlib.h>
-//#include <ctype.h>
-//#include <string.h>
-//#include <math.h>
 #include <time.h>
-//#include <unistd.h>
-//#include <mpi.h>
-//#include <omp.h>
-//#define 
-//typedef 
 
 #define SUCCESS() (__errcode == 0)
 #define FAIL() (__errcode = -1)
@@ -19,6 +11,33 @@ static char __errcode;
 
 /*The implementation of my own functions*/
 /*============== BEGIN ==================*/
+void rbt_preord_tranverse(struct rbt_node *root, FILE *fout)
+{
+    if(root->p != NULL) {
+        fprintf(fout, "%d\n", root->key);
+        rbt_preord_tranverse(root->left, fout);
+        rbt_preord_tranverse(root->right, fout);
+    }
+}
+
+void rbt_inord_tranverse(struct rbt_node *root, FILE *fout)
+{
+    if(root->p != NULL) {
+        rbt_inord_tranverse(root->left, fout);
+        fprintf(fout, "%d\n", root->key);
+        rbt_inord_tranverse(root->right, fout);
+    }
+}
+
+void rbt_postord_tranverse(struct rbt_node *root, FILE *fout)
+{
+    if(root->p != NULL) {
+        rbt_postord_tranverse(root->left, fout);
+        rbt_postord_tranverse(root->right, fout);
+        fprintf(fout, "%d\n", root->key);
+    }
+}
+
 void rbt_print_tree_travese(struct rbt_node *node, FILE *output)
 {
     clock_t t;
@@ -31,14 +50,17 @@ void rbt_print_tree_travese(struct rbt_node *node, FILE *output)
             fprintf(output, "%d [color=\"red\"];\n", node->key);
         }
 
+        // node->left != T->nil
         if(node->left->p != NULL)
             fprintf(output, "%d -> %d;\n", node->key, node->left->key);
         else {
             t = clock();
+            // generate uniq node name
             sprintf(tmp, "nil%ld [shape=point];\n%%d -> nil%ld;\n", t, t);
             fprintf(output, tmp, node->key);
         }
 
+        // node->right != T->nil
         if(node->right->p != NULL)
             fprintf(output, "%d -> %d;\n", node->key, node->right->key);
         else {
@@ -68,6 +90,7 @@ struct rbt_node *rbt_new_node(rbt_key key)
 
 struct rbt_tree *rbt_new_tree(void)
 {
+    // t->p = t->left = t->right = NULL
     struct rbt_tree *t = (struct rbt_tree *)calloc(1, sizeof(struct rbt_tree));
     t->nil = rbt_new_node(0);
     t->nil->color = BLACK;
