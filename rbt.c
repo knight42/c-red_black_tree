@@ -87,19 +87,48 @@ void rbt_print_tree(struct rbt_tree *T, const char *filename)
     fputs("}\n", result);
 }
 
+void rbt_free_all_nodes(struct rbt_node *root)
+{
+    if(root->p != NULL) {
+        rbt_free_all_nodes(root->left);
+        rbt_free_all_nodes(root->right);
+        free(root);
+    }
+}
+int rbt_destroy_tree(struct rbt_tree *T)
+{
+    if(!T) {
+        diehere("%s\n", "Empty tree is invalid!");
+        return -1;
+    }
+
+    rbt_free_all_nodes(T->root);
+    free(T->nil);
+    free(T);
+    return 0;
+}
+
 struct rbt_node *rbt_new_node(rbt_key key)
 {
+    struct rbt_node *node = (struct rbt_node *)calloc(1, sizeof(struct rbt_node));
+    // equals to:
     // node->p = node->left = node->right = NULL
     // node->size = node->key = 0
-    struct rbt_node *node = (struct rbt_node *)calloc(1, sizeof(struct rbt_node));
     node->key = key;
     return node;
 }
 
 struct rbt_tree *rbt_new_tree(void)
 {
-    // t->p = t->left = t->right = NULL
     struct rbt_tree *t = (struct rbt_tree *)calloc(1, sizeof(struct rbt_tree));
+    // equals to:
+    // t->p = t->left = t->right = NULL
+
+    if(!t) {
+        diehere("%s\n", "Fail to alloc memory");
+        return NULL;
+    }
+
     t->nil = rbt_new_node(0);
     t->nil->color = BLACK;
     t->root = t->nil;
@@ -108,6 +137,11 @@ struct rbt_tree *rbt_new_tree(void)
 
 int rbt_insert_one_key(struct rbt_tree *T, rbt_key key)
 {
+    if(!T) {
+        diehere("%s\n", "Empty tree is invalid!");
+        return -1;
+    }
+
     struct rbt_node *node;
     node = rbt_new_node(key);
     RB_INSERT(T, node);
@@ -116,7 +150,10 @@ int rbt_insert_one_key(struct rbt_tree *T, rbt_key key)
 
 int rbt_insert_keys(struct rbt_tree *T, rbt_key *keys, int size)
 {
-    if(size < 0) return -1;
+    if(size < 0 || !T || !keys) {
+        diehere("%s\n", "Invalid input.");
+        return -1;
+    }
 
     int i;
     for (i = 0; i < size; ++i)
@@ -128,9 +165,13 @@ int rbt_insert_keys(struct rbt_tree *T, rbt_key *keys, int size)
 
 struct rbt_node *rbt_locate(struct rbt_tree *T, rbt_key key)
 {
+    if(!T) {
+        diehere("%s\n", "Empty tree is invalid!");
+        return NULL;
+    }
+
     struct rbt_node *root = T->root;
-    // root != T->nil
-    while(root->p != NULL) {
+    while(root != T->nil) {
         if(root->key == key) return root;
         root = (root->key > key) ? root->left : root->right;
     }
@@ -140,7 +181,10 @@ struct rbt_node *rbt_locate(struct rbt_tree *T, rbt_key key)
 int rbt_del_one_key(struct rbt_tree *T, rbt_key key)
 {
     struct rbt_node *position = rbt_locate(T, key);
-    if(! position) return -1;
+    if(! position) {
+        diehere("%d is not in the Red-Black-Tree\n", key);
+        return -1;
+    }
     RB_DELETE(T, position);
     return 0;
 }
@@ -179,33 +223,35 @@ int OS_RANK(struct rbt_tree *T, struct rbt_node *node)
     return rank;
 }
 
-rbt_key OS_SELECT(struct rbt_node *root, int i)
+struct rbt_node* OS_SELECT(struct rbt_node *root, int i)
 {
     if(i <= 0)
-        return (rbt_key)0;
+        return NULL;
 
     // root != T->nil
-    while(root->size != 0) {
+    while(root->p != NULL) {
         if(root->left->size == i - 1) {
-            return root->key;
+            return root;
         }
         else if(root->left->size > i - 1) {
             root = root->left;
         }
         else {
-            root = root->right;
             i -= root->left->size + 1;
+            root = root->right;
         }
     }
-    return (rbt_key)0;
+    return NULL;
 }
 #endif
 
 
 int LEFT_ROTATE(struct rbt_tree *T, struct rbt_node *z)
 {
-    if(!z) 
+    if(!z) {
+        diehere("%s\n", "Invalid input.");
         return -1;
+    }
 
     struct rbt_node *rchild = z->right, **tmp;
     z->right = rchild->left;
@@ -228,8 +274,10 @@ int LEFT_ROTATE(struct rbt_tree *T, struct rbt_node *z)
 
 int RIGHT_ROTATE(struct rbt_tree *T, struct rbt_node *z)
 {
-    if(!z) 
+    if(!z) {
+        diehere("%s\n", "Invalid input.");
         return -1;
+    }
 
     struct rbt_node *lchild = z->left, **tmp;
     z->left = lchild->right;
@@ -250,12 +298,12 @@ int RIGHT_ROTATE(struct rbt_tree *T, struct rbt_node *z)
     return 0;
 }
 
-__attribute__((always_inline)) struct rbt_node* TREE_MINIMUM(struct rbt_node *node) 
+struct rbt_node* TREE_MINIMUM(struct rbt_node *node)
 {
     if(! node) return NULL;
 
     // node->left != T.nil
-    while(node->left->left != NULL) {
+    while(node->left->p != NULL) {
         node = node->left;
     }
     return node;
@@ -263,11 +311,16 @@ __attribute__((always_inline)) struct rbt_node* TREE_MINIMUM(struct rbt_node *no
 
 int RB_TRANSPLANT(struct rbt_tree *T, struct rbt_node *old, struct rbt_node *alt)
 {
+    if(!T || !old || !alt)
+        return -1;
+
     if(old->p == T->nil) {
         T->root = alt;
     }
 
-    alt->p = old->p;
+    if(alt->p != NULL) {
+        alt->p = old->p;
+    }
 
     struct rbt_node **child;
     child = (old->p->left == old) ? &old->p->left : &old->p->right;
@@ -277,9 +330,12 @@ int RB_TRANSPLANT(struct rbt_tree *T, struct rbt_node *old, struct rbt_node *alt
 
 int RB_DELETE_FIXUP(struct rbt_tree *T, struct rbt_node *fix)
 {
+    if(!fix)
+        return -1;
+
     struct rbt_node *uncle;
     while(fix != T->root && fix->color == BLACK) {
-        // left hand side
+        // left child
         if(fix == fix->p->left) {
             uncle = fix->p->right;
             // Case 1
@@ -299,7 +355,7 @@ int RB_DELETE_FIXUP(struct rbt_tree *T, struct rbt_node *fix)
                 uncle->left->color = BLACK;
                 uncle->color = RED;
                 RIGHT_ROTATE(T, uncle);
-            } 
+            }
             // Case 4
             else {
                 uncle->color = fix->p->color;
@@ -309,7 +365,7 @@ int RB_DELETE_FIXUP(struct rbt_tree *T, struct rbt_node *fix)
                 fix = T->root;
             }
         }
-        // right hand side
+        // right child
         else {
             uncle = fix->p->left;
             // Case 1
@@ -329,7 +385,7 @@ int RB_DELETE_FIXUP(struct rbt_tree *T, struct rbt_node *fix)
                 uncle->right->color = BLACK;
                 uncle->color = RED;
                 LEFT_ROTATE(T, uncle);
-            } 
+            }
             // Case 4
             else {
                 uncle->color = fix->p->color;
@@ -350,27 +406,34 @@ struct rbt_node *RB_DELETE(struct rbt_tree *T, struct rbt_node *node)
     struct rbt_node *succ, *tofix;
     rbt_color ori_color = node->color;
 
-    if(T->root == T->nil) return NULL;
+    if(T->root == T->nil || node == NULL) return NULL;
 
     if(node->left == T->nil) {
         tofix = node->right;
-        RB_TRANSPLANT(T, node, node->right);
+        RB_TRANSPLANT(T, node, tofix);
     }
     else if(node->right == T->nil) {
         tofix = node->left;
-        RB_TRANSPLANT(T, node, node->left);
+        RB_TRANSPLANT(T, node, tofix);
     }
     else {
         succ = TREE_MINIMUM(node->right);
         ori_color = succ->color;
         tofix = succ->right;
-        if(succ->p == node) {
+
+        /*
+         *The charater of a leaf is that its pointer to parent is NULL
+         *So T->nil->p cannot be modified
+         */
+        if(succ->p == node && tofix->p != NULL) {
             tofix->p = succ;
         }
         else {
             RB_TRANSPLANT(T, succ, tofix);
             succ->right = node->right;
-            succ->right->p = succ;
+            if(succ->right->p != NULL) {
+                succ->right->p = succ;
+            }
         }
         RB_TRANSPLANT(T, node, succ);
         succ->left = node->left;
@@ -378,7 +441,8 @@ struct rbt_node *RB_DELETE(struct rbt_tree *T, struct rbt_node *node)
         succ->color = node->color;
     }
 
-    if(ori_color == BLACK) {
+    // only fix non-leaf node
+    if(ori_color == BLACK && tofix != T->nil) {
         RB_DELETE_FIXUP(T, tofix);
     }
 
@@ -389,7 +453,7 @@ int RB_INSERT_FIXUP(struct rbt_tree *T, struct rbt_node *z)
 {
     struct rbt_node *y;
     while(z->p->color == RED) {
-        // left
+        // left child
         if(z->p == z->p->p->left) {
             y = z->p->p->right;
             /*Case 1*/
@@ -412,7 +476,7 @@ int RB_INSERT_FIXUP(struct rbt_tree *T, struct rbt_node *z)
                 RIGHT_ROTATE(T, z->p->p);
             }
         }
-        // right
+        // right child
         else {
             y = z->p->p->left;
             /*Case 1*/

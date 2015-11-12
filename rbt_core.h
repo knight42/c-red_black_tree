@@ -27,13 +27,14 @@ extern int LEFT_ROTATE(struct rbt_tree *T, struct rbt_node *z);
 extern int RIGHT_ROTATE(struct rbt_tree *T, struct rbt_node *z);
 
 
-extern int RB_TRANSPLANT(struct rbt_tree *T, struct rbt_node *old, struct rbt_node *alt);
-extern struct rbt_node* TREE_MINIMUM(struct rbt_node *node) __attribute__((always_inline)); 
-extern int RB_DELETE_FIXUP(struct rbt_tree *T, struct rbt_node *x);
+extern struct rbt_node* TREE_MINIMUM(struct rbt_node *node);
 extern struct rbt_node *RB_DELETE(struct rbt_tree *T, struct rbt_node *node);
+extern int RB_TRANSPLANT(struct rbt_tree *T, struct rbt_node *old, struct rbt_node *alt);
+extern int RB_DELETE_FIXUP(struct rbt_tree *T, struct rbt_node *x);
 
 #ifdef EXTENDED_RBT
-extern rbt_key OS_SELECT(struct rbt_node *root, int i);
+extern struct rbt_node* OS_SELECT(struct rbt_node *root, int i);
 extern int OS_RANK(struct rbt_tree *T, struct rbt_node *node);
+extern void ext_rbt_allrank(struct rbt_node *root);
 #endif
 #endif
