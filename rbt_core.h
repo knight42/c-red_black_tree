@@ -35,6 +35,5 @@ extern int RB_DELETE_FIXUP(struct rbt_tree *T, struct rbt_node *x);
 #ifdef EXTENDED_RBT
 extern struct rbt_node* OS_SELECT(struct rbt_node *root, int i);
 extern int OS_RANK(struct rbt_tree *T, struct rbt_node *node);
-extern void ext_rbt_allrank(struct rbt_node *root);
 #endif
 #endif

@@ -16,13 +16,15 @@ extern struct rbt_tree *rbt_new_tree(void);
 extern struct rbt_node *rbt_locate(struct rbt_tree *T, rbt_key key);
 
 
-extern void rbt_preord_tranverse(struct rbt_node *root, FILE *fout);
-extern void rbt_inord_tranverse(struct rbt_node *root, FILE *fout);
-extern void rbt_postord_tranverse(struct rbt_node *root, FILE *fout);
+typedef void (*trav_func_t) (struct rbt_node*, FILE *);
+
+extern void rbt_preord_traverse(struct rbt_node *root, FILE *fout);
+extern void rbt_inord_traverse(struct rbt_node *root, FILE *fout);
+extern void rbt_postord_traverse(struct rbt_node *root, FILE *fout);
 
 
-extern int rbt_insert_one_key(struct rbt_tree *T, rbt_key key);
-extern int rbt_insert_keys(struct rbt_tree *T, rbt_key *keys, int size);
+extern int rbt_ins_one_key(struct rbt_tree *T, rbt_key key);
+extern int rbt_ins_keys(struct rbt_tree *T, rbt_key *keys, int size);
 extern int rbt_del_one_key(struct rbt_tree *T, rbt_key key);
 extern int rbt_del_keys(struct rbt_tree *T, rbt_key *keys, int nmem);
 

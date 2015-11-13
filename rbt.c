@@ -7,29 +7,29 @@
 
 /*The implementation of my own functions*/
 /*============== BEGIN ==================*/
-void rbt_preord_tranverse(struct rbt_node *root, FILE *fout)
+void rbt_preord_traverse(struct rbt_node *root, FILE *fout)
 {
     if(root->p != NULL) {
         fprintf(fout, "%d\n", root->key);
-        rbt_preord_tranverse(root->left, fout);
-        rbt_preord_tranverse(root->right, fout);
+        rbt_preord_traverse(root->left, fout);
+        rbt_preord_traverse(root->right, fout);
     }
 }
 
-void rbt_inord_tranverse(struct rbt_node *root, FILE *fout)
+void rbt_inord_traverse(struct rbt_node *root, FILE *fout)
 {
     if(root->p != NULL) {
-        rbt_inord_tranverse(root->left, fout);
+        rbt_inord_traverse(root->left, fout);
         fprintf(fout, "%d\n", root->key);
-        rbt_inord_tranverse(root->right, fout);
+        rbt_inord_traverse(root->right, fout);
     }
 }
 
-void rbt_postord_tranverse(struct rbt_node *root, FILE *fout)
+void rbt_postord_traverse(struct rbt_node *root, FILE *fout)
 {
     if(root->p != NULL) {
-        rbt_postord_tranverse(root->left, fout);
-        rbt_postord_tranverse(root->right, fout);
+        rbt_postord_traverse(root->left, fout);
+        rbt_postord_traverse(root->right, fout);
         fprintf(fout, "%d\n", root->key);
     }
 }
@@ -138,7 +138,7 @@ struct rbt_tree *rbt_new_tree(void)
     return t;
 }
 
-int rbt_insert_one_key(struct rbt_tree *T, rbt_key key)
+int rbt_ins_one_key(struct rbt_tree *T, rbt_key key)
 {
     if(!T) {
         diehere("%s\n", "Empty tree is invalid!");
@@ -151,7 +151,7 @@ int rbt_insert_one_key(struct rbt_tree *T, rbt_key key)
     return 0;
 }
 
-int rbt_insert_keys(struct rbt_tree *T, rbt_key *keys, int size)
+int rbt_ins_keys(struct rbt_tree *T, rbt_key *keys, int size)
 {
     if(size < 0 || !T || !keys) {
         diehere("%s\n", "Invalid input.");
@@ -161,7 +161,7 @@ int rbt_insert_keys(struct rbt_tree *T, rbt_key *keys, int size)
     int i;
     for (i = 0; i < size; ++i)
     {
-        rbt_insert_one_key(T, keys[i]);
+        rbt_ins_one_key(T, keys[i]);
     }
     return 0;
 }
