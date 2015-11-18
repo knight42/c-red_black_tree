@@ -1,7 +1,7 @@
 #include <stdio.h>
-#include "rbt.h"
 #include <stdlib.h>
 #include <time.h>
+#include "rbt.h"
 
 #define FIX_SIZE(node) ((node)->size = (node)->left->size + (node)->right->size + 1)
 
@@ -92,6 +92,7 @@ void rbt_print_tree(struct rbt_tree *T, const char *filename)
 
 void rbt_free_all_nodes(struct rbt_node *root)
 {
+    // root != T->nil
     if(root->p != NULL) {
         rbt_free_all_nodes(root->left);
         rbt_free_all_nodes(root->right);
@@ -117,6 +118,11 @@ struct rbt_node *rbt_new_node(rbt_key key)
     // equals to:
     // node->p = node->left = node->right = NULL
     // node->size = node->key = 0
+
+    if(!node) {
+        diehere("%s\n", "Fail to alloc memory");
+        return NULL;
+    }
     node->key = key;
     return node;
 }
@@ -206,6 +212,7 @@ int rbt_del_keys(struct rbt_tree *T, rbt_key *keys, int nmem)
 
 #ifdef EXTENDED_RBT
 
+// calculate the rank of all nodes
 void ext_rbt_allrank(struct rbt_node *root)
 {
     if(root->p != NULL) {
@@ -228,8 +235,10 @@ int OS_RANK(struct rbt_tree *T, struct rbt_node *node)
 
 struct rbt_node* OS_SELECT(struct rbt_node *root, int i)
 {
-    if(i <= 0)
+    if(i <= 0) {
+        diehere("%s\n", "Invalid input");
         return NULL;
+    }
 
     // root != T->nil
     while(root->p != NULL) {
@@ -329,6 +338,7 @@ int RB_TRANSPLANT(struct rbt_tree *T, struct rbt_node *old, struct rbt_node *alt
         T->root = alt;
     }
 
+    // must maintain the property that T->nil->p == NULL
     if(alt != T->nil) {
         alt->p = old->p;
     }
@@ -344,14 +354,14 @@ int RB_DELETE_FIXUP(struct rbt_tree *T, struct rbt_node *fix)
     if(!fix)
         return -1;
 
-    struct rbt_node *uncle;
+    struct rbt_node *brother;
     while(fix != T->root && fix->color == BLACK) {
         // left child
         if(fix == fix->p->left) {
-            uncle = fix->p->right;
+            brother = fix->p->right;
             // Case 1
-            if(uncle->color == RED) {
-                uncle->color = BLACK;
+            if(brother->color == RED) {
+                brother->color = BLACK;
                 fix->p->color = RED;
                 LEFT_ROTATE(T, fix->p);
 
@@ -360,33 +370,33 @@ int RB_DELETE_FIXUP(struct rbt_tree *T, struct rbt_node *fix)
                 FIX_SIZE(fix->p->p);
                 #endif
 
-                uncle = fix->p->right;
+                brother = fix->p->right;
             }
             // Case 2
-            if(uncle->left->color == BLACK && uncle->right->color == BLACK) {
-                uncle->color = RED;
+            if(brother->left->color == BLACK && brother->right->color == BLACK) {
+                brother->color = RED;
                 fix = fix->p;
             }
             else {
             // Case 3
-                if(uncle->right->color == BLACK) {
-                    uncle->left->color = BLACK;
-                    uncle->color = RED;
-                    RIGHT_ROTATE(T, uncle);
+                if(brother->right->color == BLACK) {
+                    brother->left->color = BLACK;
+                    brother->color = RED;
+                    RIGHT_ROTATE(T, brother);
 
                     #ifdef EXTENDED_RBT
-                    FIX_SIZE(uncle);
-                    FIX_SIZE(uncle->p);
+                    FIX_SIZE(brother);
+                    FIX_SIZE(brother->p);
                     #endif
 
-                    /*uncle = fix->p->right;*/
-                    uncle = uncle->p;
+                    /*brother = fix->p->right;*/
+                    brother = brother->p;
                 }
 
             // Case 4
-                uncle->color = fix->p->color;
+                brother->color = fix->p->color;
                 fix->p->color = BLACK;
-                uncle->right->color = BLACK;
+                brother->right->color = BLACK;
                 LEFT_ROTATE(T, fix->p);
 
                 #ifdef EXTENDED_RBT
@@ -399,39 +409,39 @@ int RB_DELETE_FIXUP(struct rbt_tree *T, struct rbt_node *fix)
         }
         // right child
         else {
-            uncle = fix->p->left;
+            brother = fix->p->left;
             // Case 1
-            if(uncle->color == RED) {
-                uncle->color = BLACK;
+            if(brother->color == RED) {
+                brother->color = BLACK;
                 fix->p->color = RED;
                 RIGHT_ROTATE(T, fix->p);
-                uncle = fix->p->left;
+                brother = fix->p->left;
             }
             // Case 2
-            if(uncle->right->color == BLACK && uncle->left->color == BLACK) {
-                uncle->color = RED;
+            if(brother->right->color == BLACK && brother->left->color == BLACK) {
+                brother->color = RED;
                 fix = fix->p;
             }
             else {
             // Case 3
-                if(uncle->left->color == BLACK) {
-                    uncle->right->color = BLACK;
-                    uncle->color = RED;
-                    LEFT_ROTATE(T, uncle);
+                if(brother->left->color == BLACK) {
+                    brother->right->color = BLACK;
+                    brother->color = RED;
+                    LEFT_ROTATE(T, brother);
 
                     #ifdef EXTENDED_RBT
-                    FIX_SIZE(uncle);
-                    FIX_SIZE(uncle->p);
+                    FIX_SIZE(brother);
+                    FIX_SIZE(brother->p);
                     #endif
 
-                    /*uncle = fix->p->left;*/
-                    uncle = uncle->p;
+                    /*brother = fix->p->left;*/
+                    brother = brother->p;
                 }
 
             // Case 4
-                uncle->color = fix->p->color;
+                brother->color = fix->p->color;
                 fix->p->color = BLACK;
-                uncle->left->color = BLACK;
+                brother->left->color = BLACK;
                 RIGHT_ROTATE(T, fix->p);
 
                 #ifdef EXTENDED_RBT
@@ -508,10 +518,7 @@ struct rbt_node *RB_DELETE(struct rbt_tree *T, struct rbt_node *node)
     }
 
     // only fix non-leaf node
-    if (tofix == T->nil) {
-
-    }
-    else if(ori_color == BLACK) {
+    if(tofix != T->nil && ori_color == BLACK) {
         RB_DELETE_FIXUP(T, tofix);
     }
 
@@ -520,7 +527,7 @@ struct rbt_node *RB_DELETE(struct rbt_tree *T, struct rbt_node *node)
 
 int RB_INSERT_FIXUP(struct rbt_tree *T, struct rbt_node *z)
 {
-    struct rbt_node *y;
+    struct rbt_node *uncle;
 
     #ifdef EXTENDED_RBT
     RB_SIZE_FIXUP(T, z);
@@ -529,16 +536,23 @@ int RB_INSERT_FIXUP(struct rbt_tree *T, struct rbt_node *z)
     while(z->p->color == RED) {
         // left child
         if(z->p == z->p->p->left) {
-            y = z->p->p->right;
+            uncle = z->p->p->right;
             /*Case 1*/
-            if(y->color == RED) {
+            /*
+             *Change parent and uncle's color to BLACK and go up
+             */
+            if(uncle->color == RED) {
                 z->p->color = BLACK;
-                y->color = BLACK;
+                uncle->color = BLACK;
                 z->p->p->color = RED;
                 z = z->p->p;
             }
             else {
                 /*Case 2*/
+                /*
+                 *z is its parent's rchild
+                 *let z be the root
+                 */
                 if(z == z->p->right) {
                     z = z->p;
                     LEFT_ROTATE(T, z);
@@ -560,11 +574,11 @@ int RB_INSERT_FIXUP(struct rbt_tree *T, struct rbt_node *z)
         }
         // right child
         else {
-            y = z->p->p->left;
+            uncle = z->p->p->left;
             /*Case 1*/
-            if(y->color == RED) {
+            if(uncle->color == RED) {
                 z->p->color = BLACK;
-                y->color = BLACK;
+                uncle->color = BLACK;
                 z->p->p->color = RED;
                 z = z->p->p;
             }
